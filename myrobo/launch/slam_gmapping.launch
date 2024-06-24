@@ -1,0 +1,71 @@
+<launch>
+	<master auto="start"/>
+
+	<param name ="use_sim_time" value="false"/>
+
+<!--- Start laser scan --> 
+
+<node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
+  <param name="serial_port"         type="string" value="/dev/ttyUSB0"/>  
+  <param name="serial_baudrate"     type="int"    value="460800"/>
+  <param name="frame_id"            type="string" value="laser"/>
+  <param name="inverted"            type="bool"   value="false"/>
+  <param name="angle_compensate"    type="bool"   value="true"/>
+  <param name="scan_frequency"      type="double" value="10.0"/>
+  <param name="scan_mode"           type="string" value="Standard"/>
+  </node>
+
+
+
+<!--- Start arduino serial interface --> 
+
+	<node pkg="rosserial_arduino" type="serial_node.py" name="rosserial" respawn="true"  args="_port:=/dev/ttyACM0"/>
+
+<!--- Setup tramformation --> 
+
+	<node pkg="tf" type="static_transform_publisher" name="base_2_laser" args="0 0 0 0 0 1 0 base_link laser 100" />
+
+<!--- Run odometry setup node --> 
+
+	<node pkg="myrobo" type="odom_omni" name="odometryNode"   output="screen"/>
+
+<!--- Run Slam gmapping node -->
+
+    <param name="use_sim_time" value="false"/>
+    <node pkg="omni_gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+      <!-- <remap from="scan" to="base_scan"/> -->
+      <param name="map_update_interval" value="5.0"/>
+      <param name="maxUrange" value="6.0"/>
+      <param name="sigma" value="0.05"/>
+      <param name="kernelSize" value="1"/>
+      <param name="lstep" value="0.05"/>
+      <param name="astep" value="0.05"/>
+      <param name="iterations" value="5"/>
+      <param name="lsigma" value="0.075"/>
+      <param name="ogain" value="3.0"/>
+      <param name="lskip" value="0"/>
+      <param name="srr" value="0.1"/>
+      <param name="srt" value="0.2"/>
+      <param name="str" value="0.1"/>
+      <param name="stt" value="0.2"/>
+      <param name="linearUpdate" value="1.0"/>
+      <param name="angularUpdate" value="0.5"/>
+      <param name="temporalUpdate" value="3.0"/>
+      <param name="resampleThreshold" value="0.5"/>
+      <param name="particles" value="30"/>
+      <param name="xmin" value="-5.0"/>
+      <param name="ymin" value="-5.0"/>
+      <param name="xmax" value="5.0"/>
+      <param name="ymax" value="5.0"/>
+      <param name="delta" value="0.05"/>
+      <param name="llsamplerange" value="0.01"/>
+      <param name="llsamplestep" value="0.01"/>
+      <param name="lasamplerange" value="0.005"/>
+      <param name="lasamplestep" value="0.005"/>
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find myrobo)/rviz/rviz_config.rviz" />
+
+</launch> 
+
+

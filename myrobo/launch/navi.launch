@@ -1,0 +1,88 @@
+<launch>
+	<master auto="start"/>
+
+	<param name ="use_sim_time" value="false"/>
+
+<!--- Start laser scan --> 
+
+<node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
+  <param name="serial_port"         type="string" value="/dev/ttyUSB0"/>  
+  <param name="serial_baudrate"     type="int"    value="460800"/>
+  <param name="frame_id"            type="string" value="laser"/>
+  <param name="inverted"            type="bool"   value="false"/>
+  <param name="angle_compensate"    type="bool"   value="true"/>
+  <param name="scan_frequency"      type="double" value="10.0"/>
+  <param name="scan_mode"           type="string" value="Standard"/>
+  </node>
+
+
+
+<!--- Start arduino serial interface --> 
+
+	<node pkg="rosserial_arduino" type="serial_node.py" name="rosserial" respawn="true"  args="_port:=/dev/ttyACM0"/>
+
+<!--- Setup tramformation --> 
+
+	<node pkg="tf" type="static_transform_publisher" name="base_2_laser" args="0 0 0 0 0 1 0 base_link laser 100" />
+
+<!--- Run odometry setup node --> 
+
+	<node pkg="myrobo" type="odom_omni_test" name="odometryNode"   output="screen"/>
+
+<!--- Run the map server --> 
+
+	<node  pkg="map_server" type="map_server" name="map_server"  args="$(find myrobo)/maps/map02.yaml"/>
+
+<!--- Run AMCL --> 
+<node pkg="amcl" type="amcl" name="amcl">
+  <!-- Publish scans from best pose at a max of 10 Hz -->
+  <param name="odom_model_type" value="omni"/>
+  <param name="odom_alpha5" value="0.1"/>
+  <param name="transform_tolerance" value="2" />
+  <param name="gui_publish_rate" value="10.0"/>
+  <param name="laser_max_beams" value="30"/>
+  <param name="min_particles" value="500"/>
+  <param name="max_particles" value="5000"/>
+  <param name="kld_err" value="0.05"/>
+  <param name="kld_z" value="0.99"/>
+  <param name="odom_alpha1" value="0.2"/>
+  <param name="odom_alpha2" value="0.2"/>
+  <!-- translation std dev, m -->
+  <param name="odom_alpha3" value="0.8"/>
+  <param name="odom_alpha4" value="0.2"/>
+  <param name="laser_z_hit" value="0.5"/>
+  <param name="laser_z_short" value="0.05"/>
+  <param name="laser_z_max" value="0.05"/>
+  <param name="laser_z_rand" value="0.5"/>
+  <param name="laser_sigma_hit" value="0.2"/>
+  <param name="laser_lambda_short" value="0.1"/>
+  <param name="laser_lambda_short" value="0.1"/>
+  <param name="laser_model_type" value="likelihood_field"/>
+  <!-- <param name="laser_model_type" value="beam"/> -->
+  <param name="laser_likelihood_max_dist" value="2.0"/>
+  <param name="update_min_d" value="0.2"/>
+  <param name="update_min_a" value="0.5"/>
+  <param name="odom_frame_id" value="odom"/>
+  <param name="resample_interval" value="1"/>
+  <param name="transform_tolerance" value="2"/>
+  <param name="recovery_alpha_slow" value="0.0"/>
+  <param name="recovery_alpha_fast" value="0.0"/>
+</node>
+
+
+<!--- Run move base --> 
+
+	<node pkg="move_base" type="move_base" name="move_base" respawn="true"  output="screen">
+	<rosparam file="$(find myrobo)/param/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
+        <rosparam file="$(find myrobo)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
+        <rosparam file="$(find myrobo)/param/local_costmap_params.yaml" command="load" /> 
+	<rosparam file="$(find myrobo)/param/global_costmap_params.yaml" command="load" />
+	<rosparam file="$(find myrobo)/param/move_base_params.yaml" command="load" />
+	<rosparam file="$(find myrobo)/param/teb_local_planner_params.yaml" command="load" /> 
+	</node>
+
+
+
+<node name="rviz" pkg="rviz" type="rviz" args="-d $(find myrobo)/rviz/rviz_navi_config.rviz" />
+
+</launch> 
